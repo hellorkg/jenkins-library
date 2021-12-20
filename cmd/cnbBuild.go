@@ -112,14 +112,6 @@ func isIgnored(find string, include, exclude *ignore.GitIgnore) bool {
 	return false
 }
 
-func isDir(path string) (bool, error) {
-	info, err := os.Stat(path)
-	if err != nil {
-		return false, err
-	}
-	return info.IsDir(), nil
-}
-
 func isBuilder(utils cnbutils.BuildUtils) error {
 	exists, err := utils.FileExists(creatorPath)
 	if err != nil {
@@ -177,7 +169,7 @@ func copyProject(source, target string, include, exclude *ignore.GitIgnore, util
 		}
 		if !isIgnored(relPath, include, exclude) {
 			target := path.Join(target, strings.ReplaceAll(sourceFile, source, ""))
-			dir, err := isDir(sourceFile)
+			dir, err := utils.DirExists(sourceFile)
 			if err != nil {
 				log.SetErrorCategory(log.ErrorBuild)
 				return errors.Wrapf(err, "Checking file info '%s' failed", target)
@@ -261,6 +253,7 @@ func createTelemetryData(config *cnbBuildOptions) cnbBuildTelemetryData {
 		ImageTag:       config.ContainerImageTag,
 		AdditionalTags: config.AdditionalTags,
 		BindingKeys:    bindingKeys,
+		Path:           config.Path,
 	}
 	return customTelemetryData
 }
@@ -373,10 +366,10 @@ func runCnbBuild(config *cnbBuildOptions, telemetryData *telemetry.CustomData, u
 		source = config.Path
 	}
 
-	dir, err := isDir(source)
+	dir, err := utils.DirExists(source)
 	if err != nil {
 		log.SetErrorCategory(log.ErrorBuild)
-		return errors.Wrapf(err, "Checking file info '%s' failed", target)
+		return errors.Wrapf(err, "Checking file info '%s' failed", source)
 	}
 
 	if dir {
