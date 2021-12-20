@@ -38,14 +38,14 @@ type cnbBuildUtilsBundle struct {
 }
 
 type cnbBuildTelemetryData struct {
-	Version        int                           `json:"version"`
-	ImageTag       string                        `json:"imageTag"`
-	AdditionalTags []string                      `json:"additionalTags"`
-	BindingKeys    []string                      `json:"bindingKeys"`
-	Path           string                        `json:"path"`
-	BuildEnv       cnbBuildTelemetryDataBuildEnv `json:"buildEnv"`
-	// TODO: Buildpacks - config, descripter, resulting
-	// TODO: projectorDescriptor: include/exclude only boolean for now
+	Version           int                                    `json:"version"`
+	ImageTag          string                                 `json:"imageTag"`
+	AdditionalTags    []string                               `json:"additionalTags"`
+	BindingKeys       []string                               `json:"bindingKeys"`
+	Path              string                                 `json:"path"`
+	BuildEnv          cnbBuildTelemetryDataBuildEnv          `json:"buildEnv"`
+	Buildpacks        cnbBuildTelemetryDataBuildpacks        `json:"buildpacks"`
+	ProjectDescriptor cnbBuildTelemetryDataProjectDescriptor `json:"projectDescriptor"`
 }
 
 type cnbBuildTelemetryDataBuildEnv struct {
@@ -54,6 +54,18 @@ type cnbBuildTelemetryDataBuildEnv struct {
 	KeysOverall               []string `json:"keysOverall"`
 	JVMVersion                string   `json:"jvmVersion"`
 	NodeVersion               string   `json:"nodeVersion"`
+}
+
+type cnbBuildTelemetryDataBuildpacks struct {
+	FromConfig            []string `json:"FromConfig"`
+	FromProjectDescriptor []string `json:"FromProjectDescriptor"`
+	Overall               []string `json:"overall"`
+}
+
+type cnbBuildTelemetryDataProjectDescriptor struct {
+	Used        bool `json:"used"`
+	IncludeUsed bool `json:"includeUsed"`
+	ExcludeUsed bool `json:"excludeUsed"`
 }
 
 func setCustomBuildpacks(bpacks []string, dockerCreds string, utils cnbutils.BuildUtils) (string, string, error) {
@@ -269,6 +281,8 @@ func addConfigTelemetryData(data *cnbBuildTelemetryData, config *cnbBuildOptions
 	data.BuildEnv.KeysFromConfig = configKeys
 	data.BuildEnv.KeysOverall = overallKeys
 	addSpecifcEnvToTelemetryData(data, config.BuildEnvVars)
+
+	data.Buildpacks.FromConfig = config.Buildpacks
 }
 
 func addProjectDescriptorTelemetryData(data *cnbBuildTelemetryData, descriptor project.Descriptor) {
@@ -281,6 +295,12 @@ func addProjectDescriptorTelemetryData(data *cnbBuildTelemetryData, descriptor p
 	data.BuildEnv.KeysFromProjectDescriptor = descriptorKeys
 	data.BuildEnv.KeysOverall = overallKeys
 	addSpecifcEnvToTelemetryData(data, descriptor.EnvVars)
+
+	data.Buildpacks.FromProjectDescriptor = descriptor.Buildpacks
+
+	data.ProjectDescriptor.Used = true
+	data.ProjectDescriptor.IncludeUsed = descriptor.Include != nil
+	data.ProjectDescriptor.ExcludeUsed = descriptor.Exclude != nil
 }
 
 func addSpecifcEnvToTelemetryData(data *cnbBuildTelemetryData, env map[string]interface{}) {
@@ -337,6 +357,7 @@ func runCnbBuild(config *cnbBuildOptions, telemetryData *telemetry.CustomData, u
 			include = descriptor.Include
 		}
 	}
+	customTelemetryData.Buildpacks.Overall = config.Buildpacks
 
 	telemetryData.Custom1Label = "cnbBuildStepData"
 	customData, err := json.Marshal(customTelemetryData)
